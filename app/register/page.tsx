@@ -32,12 +32,13 @@ export default function Register() {
 
       if (error) {
         setError(error.message)
+        throw error
         return
       }
 
       if (data.user) {
         const { data: userIdData, error: userIdError } = await supabase
-          .from("user")
+          .from("users")
           .select("id")
           .eq("id", data.user.id)
           .maybeSingle()
@@ -48,34 +49,28 @@ export default function Register() {
         }
 
         if (!userIdData) {
-          const { error: insertError } = await supabase.from("user").insert({
+          const { error: insertError } = await supabase.from("users").insert({
             id: data.user.id,
             name: "ユーザー",
+            study_goal:"未設定",
             created_at: data.user.created_at,
-            study_goal: "未設定",
           })
 
           if (insertError) {
             setError(`ユーザーの新規登録に失敗しました: ${insertError.message}`)
             return
           }
-
-          const { error: timeInsertError } = await supabase.from("study-time").insert({
-            user_id: data.user.id,
-            time: 0,
-            created_at: data.user.created_at,
-            subject: "未設定",
-          })
-
-          if (timeInsertError) {
-            console.error("時間情報の保存に失敗しました:", timeInsertError.message)
-          }
         }
         router.push("/")
       }
-    } catch (error: any) {
-      setError("予期せぬエラーが発生しました")
-    } finally {
+    } catch (error) {
+      console.error("ユーザーの新規登録に失敗しました:", error)
+      if (error instanceof Error) {
+        alert("ユーザー登録エラー: " + error.message)
+      } else {
+        alert("ユーザー登録エラー: " + JSON.stringify(error))
+      }
+    }finally {
       setIsLoading(false)
     }
   }

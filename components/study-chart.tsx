@@ -1,63 +1,35 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { supabase } from "@/utils/supabase"
 import { BarChart3 } from "lucide-react"
+import type { ChartData } from "@/app/review/page"
 
-interface ChartData {
-  date: string
-  totalTime: number
+interface StudyChartProps {
+  data: ChartData[]
 }
 
-export function StudyChart() {
-  const [chartData, setChartData] = useState<ChartData[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+export function StudyChart({ data }: StudyChartProps) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
+  const maxTime = Math.max(...data.map((d) => d.totalTime), 0)
 
-  useEffect(() => {
-    loadChartData()
-  }, [])
-
-  const loadChartData = async () => {
-    try {
-      const { data: userData } = await supabase.auth.getUser()
-      if (!userData.user) return
-
-      // 過去30日間のデータを取得
-      const thirtyDaysAgo = new Date()
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-
-      const { data, error } = await supabase
-        .from("study_times")
-        .select("time, created_at")
-        .eq("user_id", userData.user.id)
-        .gte("created_at", thirtyDaysAgo.toISOString())
-        .order("created_at", { ascending: true })
-
-      if (error) throw error
-
-      // 日付ごとにグループ化して合計時間を計算
-      const groupedData: { [key: string]: number } = {}
-
-      data?.forEach((record: any) => {
-        const date = new Date(record.created_at).toLocaleDateString("ja-JP")
-        groupedData[date] = (groupedData[date] || 0) + record.time
-      })
-
-      const chartData = Object.entries(groupedData).map(([date, totalTime]) => ({
-        date,
-        totalTime,
-      }))
-
-      setChartData(chartData)
-    } catch (error) {
-      console.error("チャートデータの読み込みに失敗:", error)
-    } finally {
-      setIsLoading(false)
-    }
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString("ja-JP", {
+      month: "numeric",
+      day: "numeric",
+      weekday: "short",
+    })
   }
 
-  const maxTime = Math.max(...chartData.map((d) => d.totalTime), 0)
+  const getBarColor = (time: number, maxTime: number) => {
+    const intensity = maxTime > 0 ? time / maxTime : 0
+    if (intensity > 0.8) return "bg-green-500"
+    if (intensity > 0.6) return "bg-blue-500"
+    if (intensity > 0.4) return "bg-yellow-500"
+    if (intensity > 0.2) return "bg-orange-500"
+    return "bg-gray-400"
+  }
 
   return (
     <Card>
@@ -69,33 +41,88 @@ export function StudyChart() {
         <CardDescription>過去30日間の学習時間の推移</CardDescription>
       </CardHeader>
       <CardContent>
-        {isLoading ? (
-          <div className="h-64 flex items-center justify-center">
-            <p>読み込み中...</p>
-          </div>
-        ) : chartData.length === 0 ? (
+        {data.length === 0 ? (
           <div className="h-64 flex items-center justify-center">
             <p className="text-muted-foreground">まだ学習記録がありません</p>
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="h-64 flex items-end justify-between gap-1 border-b border-l pl-2 pb-2">
-              {chartData.map((data, index) => (
-                <div key={index} className="flex flex-col items-center flex-1">
-                  <div
-                    className="bg-primary rounded-t w-full min-h-[4px] transition-all hover:opacity-80"
-                    style={{
-                      height: `${maxTime > 0 ? (data.totalTime / maxTime) * 200 : 4}px`,
-                    }}
-                    title={`${data.date}: ${data.totalTime}分`}
-                  />
-                  <span className="text-xs text-muted-foreground mt-2 transform -rotate-45 origin-left">
-                    {data.date.split("/").slice(1).join("/")}
-                  </span>
+            {/* ツールチップ表示エリア */}
+            <div className="h-8 flex items-center justify-center">
+              {hoveredIndex !== null && (
+                <div className="bg-popover text-popover-foreground px-3 py-2 rounded-md shadow-md border text-sm animate-in fade-in-0 zoom-in-95">
+                  <div className="font-medium">{formatDate(data[hoveredIndex].date)}</div>
+                  <div className="text-muted-foreground">
+                    学習時間: <span className="font-medium text-foreground">{data[hoveredIndex].totalTime}分</span>
+                  </div>
                 </div>
-              ))}
+              )}
             </div>
-            <div className="text-sm text-muted-foreground">横軸: 日付、縦軸: 学習時間（分）</div>
+
+            {/* 縦軸の目盛り */}
+            <div className="flex">
+              <div className="w-12 h-64 flex flex-col justify-between text-xs text-muted-foreground">
+                <span>{maxTime}分</span>
+                <span>{Math.round(maxTime * 0.75)}分</span>
+                <span>{Math.round(maxTime * 0.5)}分</span>
+                <span>{Math.round(maxTime * 0.25)}分</span>
+                <span>0分</span>
+              </div>
+
+              {/* グラフ本体 */}
+              <div className="flex-1 relative">
+                {/* 横線（グリッド） */}
+                <div className="absolute inset-0 flex flex-col justify-between">
+                  {[0, 0.25, 0.5, 0.75, 1].map((ratio, index) => (
+                    <div key={index} className="border-t border-muted/30 w-full" />
+                  ))}
+                </div>
+
+                <div className="h-64 flex items-end justify-between gap-1 pl-2 pb-2 relative">
+                  {data.map((item, index) => {
+                    const barHeight = maxTime > 0 ? (item.totalTime / maxTime) * 240 : 4
+                    const barColor = getBarColor(item.totalTime, maxTime)
+
+                    return (
+                      <div
+                        key={index}
+                        className="flex flex-col items-center flex-1 relative group"
+                        onMouseEnter={() => setHoveredIndex(index)}
+                        onMouseLeave={() => setHoveredIndex(null)}
+                      >
+                        {/* 数値表示 */}
+                        <div className="absolute -top-6 text-xs font-medium text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                          {item.totalTime}分
+                        </div>
+
+                        {/* 棒グラフ */}
+                        <div
+                          className={`${barColor} rounded-t w-full min-h-[4px] transition-all duration-300 hover:opacity-80 cursor-pointer shadow-sm`}
+                          style={{
+                            height: `${barHeight}px`,
+                          }}
+                        />
+
+                        {/* 日付ラベル */}
+                        <div className="mt-2 text-center">
+                          <div className="text-xs text-muted-foreground transform -rotate-45 origin-center whitespace-nowrap">
+                            {new Date(item.date).toLocaleDateString("ja-JP", {
+                              month: "numeric",
+                              day: "numeric",
+                            })}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground/70 mt-1">
+                            {new Date(item.date).toLocaleDateString("ja-JP", {
+                              weekday: "short",
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
         )}
       </CardContent>

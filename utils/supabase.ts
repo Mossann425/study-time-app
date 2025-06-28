@@ -29,8 +29,9 @@ export interface User {
 }
 
 export interface Subject {
-  id: number
+  id: string
   name: string
+  user_id: string
   created_at: string
 }
 

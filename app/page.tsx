@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/page-header"
 import { useRouter } from "next/navigation"
 import { SubjectManager } from "@/components/subject-manager"
 import { TimeRecorder } from "@/components/time-recorder"
+import { StudyLog } from "@/components/study-log"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Target } from "lucide-react"
@@ -38,7 +39,7 @@ export default function Home() {
       if (!userData.user) return
 
       const { data: userInfo, error } = await supabase
-        .from("user")
+        .from("users")
         .select("study_goal")
         .eq("id", userData.user.id)
         .maybeSingle()
@@ -95,6 +96,9 @@ export default function Home() {
           <SubjectManager onSubjectAdded={handleRefresh} />
           <TimeRecorder key={refreshKey} onTimeRecorded={handleRefresh} />
         </div>
+
+        {/* 学習ログ */}
+        <StudyLog key={refreshKey} />
       </div>
     </div>
   )

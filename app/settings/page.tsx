@@ -17,7 +17,7 @@ export default function SettingsPage() {
   const [goalText, setGoalText] = useState<string>("")
   const [currentUser, setCurrentUser] = useState("")
   const [subjects, setSubjects] = useState<Subject[]>([])
-  const [editingSubject, setEditingSubject] = useState<number | null>(null)
+  const [editingSubject, setEditingSubject] = useState<string | null>(null)
   const [editingSubjectName, setEditingSubjectName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [message, setMessage] = useState("")
@@ -117,7 +117,7 @@ export default function SettingsPage() {
     setEditingSubjectName(subject.name)
   }
 
-  const handleSaveSubject = async (subjectId: number) => {
+  const handleSaveSubject = async (subjectId: string) => {
     if (!editingSubjectName.trim()) return
 
     try {

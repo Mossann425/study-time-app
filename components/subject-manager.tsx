@@ -24,12 +24,23 @@ export function SubjectManager({ onSubjectAdded }: SubjectManagerProps) {
 
   const loadSubjects = async () => {
     try {
+      console.log("科目の読み込みを開始...")
       const { data, error } = await supabase.from("subjects").select("*").order("created_at", { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabaseエラー:", error)
+        throw error
+      }
+      
+      console.log("読み込まれた科目:", data)
       setSubjects(data || [])
     } catch (error) {
       console.error("科目の読み込みに失敗:", error)
+      // エラーの詳細を表示
+      if (error instanceof Error) {
+        console.error("エラーメッセージ:", error.message)
+        console.error("エラースタック:", error.stack)
+      }
     }
   }
 
@@ -38,17 +49,40 @@ export function SubjectManager({ onSubjectAdded }: SubjectManagerProps) {
 
     setIsLoading(true)
     try {
-      const { error } = await supabase.from("subjects").insert([{ name: newSubjectName.trim() }])
+      // 1. 現在のユーザー情報を取得
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      if (error) throw error
+      // 2. ユーザーがいない（ログインしていない）場合はエラー
+      if (!user) {
+        throw new Error("ユーザーが認証されていません。ログインしてください。");
+      }
 
-      setNewSubjectName("")
-      await loadSubjects()
-      onSubjectAdded?.()
+      // 3. insert時に user_id を含める
+      const { error } = await supabase
+        .from("subjects")
+        .insert([{ name: newSubjectName.trim(), user_id: user.id }]);
+
+      if (error) {
+        // Supabaseからのエラーを直接throwする
+        throw error;
+      }
+
+      setNewSubjectName("");
+      await loadSubjects();
+      onSubjectAdded?.();
     } catch (error) {
-      console.error("科目の追加に失敗:", error)
+      console.error("科目の追加に失敗しました:", error);
+
+      // エラーをアラートで表示
+      if (error instanceof Error) {
+        alert(`科目の追加に失敗: ${error.message}`);
+      } else {
+        alert(`科目の追加に失敗: ${JSON.stringify(error)}`);
+      }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 

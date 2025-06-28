@@ -27,48 +27,99 @@ export function TimeRecorder({ onTimeRecorded }: TimeRecorderProps) {
 
   const loadSubjects = async () => {
     try {
+      console.log("科目の読み込みを開始...")
       const { data, error } = await supabase.from("subjects").select("*").order("created_at", { ascending: false })
 
-      if (error) throw error
+      if (error) {
+        console.error("Supabaseエラー:", error)
+        throw error
+      }
+      
+      console.log("読み込まれた科目:", data)
       setSubjects(data || [])
     } catch (error) {
       console.error("科目の読み込みに失敗:", error)
+      // エラーの詳細を表示
+      if (error instanceof Error) {
+        console.error("エラーメッセージ:", error.message)
+        console.error("エラースタック:", error.stack)
+      }
     }
   }
 
   const recordTime = async () => {
-    if (!selectedSubjectId || !studyTime) return
+    if (!selectedSubjectId || !studyTime) return;
 
-    setIsLoading(true)
+    setIsLoading(true);
     try {
-      const { data: userData } = await supabase.auth.getUser()
-      if (!userData.user) throw new Error("ユーザーが見つかりません")
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("ユーザーが見つかりません");
+
+      // 型変換を安全に行う
+      const subjectId = selectedSubjectId; // UUIDは文字列のまま
+      const timeValue = parseInt(studyTime, 10);
+
+      // デバッグ情報を出力
+      console.log("型変換前:", {
+        selectedSubjectId,
+        studyTime,
+        selectedSubjectIdType: typeof selectedSubjectId,
+        studyTimeType: typeof studyTime
+      });
+      
+      console.log("型変換後:", {
+        subjectId,
+        timeValue,
+        subjectIdType: typeof subjectId,
+        timeValueType: typeof timeValue
+      });
+
+      console.log("記録データ:", {
+        user_id: userData.user.id,
+        subject_id: subjectId,
+        time: timeValue,
+        comment: comment.trim() || null,
+      });
+
+      // 数値変換の確認
+      if (isNaN(timeValue)) {
+        throw new Error(`無効な学習時間: ${studyTime}`);
+      }
 
       const { error } = await supabase.from("study_times").insert([
         {
           user_id: userData.user.id,
-          subject_id: Number.parseInt(selectedSubjectId),
-          time: Number.parseInt(studyTime),
+          subject_id: subjectId,
+          time: timeValue,
           comment: comment.trim() || null,
         },
-      ])
+      ]);
 
-      if (error) throw error
+      if (error) {
+        // Supabaseからのエラーを直接throwする
+        throw error;
+      }
 
       // フォームをリセット
-      setSelectedSubjectId("")
-      setStudyTime("")
-      setComment("")
-      onTimeRecorded?.()
+      setSelectedSubjectId("");
+      setStudyTime("");
+      setComment("");
+      onTimeRecorded?.();
 
-      alert("学習時間を記録しました！")
+      alert("学習時間を記録しました！");
     } catch (error) {
-      console.error("時間の記録に失敗:", error)
-      alert("記録に失敗しました")
+      console.error("時間の記録に失敗:", error);
+      
+      // エラーをアラートで表示
+      if (error instanceof Error) {
+        alert(`記録に失敗しました: ${error.message}`);
+      } else {
+        alert(`記録に失敗しました: ${JSON.stringify(error)}`);
+      }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   return (
     <Card>

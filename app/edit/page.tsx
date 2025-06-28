@@ -41,7 +41,7 @@ export default function EditPage() {
       if (!userData.user) return
 
       const { data: userInfo, error } = await supabase
-        .from("user")
+        .from("users")
         .select("name, study_goal")
         .eq("id", userData.user.id)
         .maybeSingle()
@@ -50,7 +50,7 @@ export default function EditPage() {
         console.error("ユーザー情報の取得に失敗:", error)
       } else if (userInfo) {
         setCurrentUser(userInfo.name || "")
-        setGoalText(userInfo.study_goal || "")
+        setGoalText(userInfo.study_goal || "未設定")
       }
     } catch (error) {
       console.error("予期せぬエラー:", error)
@@ -75,7 +75,7 @@ export default function EditPage() {
       }
 
       const { data, error: updateError } = await supabase
-        .from("user")
+        .from("users")
         .update({
           study_goal: goalText.trim() || "未設定",
           name: currentUser.trim(),
