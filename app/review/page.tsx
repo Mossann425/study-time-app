@@ -22,6 +22,7 @@ export default function ReviewPage() {
   const [chartData, setChartData] = useState<ChartData[]>([])
   const [totalTime, setTotalTime] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
+  const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
 
   useEffect(() => {
     const checkSession = async () => {
@@ -37,6 +38,10 @@ export default function ReviewPage() {
     }
     checkSession()
   }, [])
+
+  useEffect(() => {
+    processChartData(studyLogs)
+  }, [viewMode, studyLogs])
 
   const loadStudyData = async () => {
     setIsLoading(true)
@@ -75,22 +80,50 @@ export default function ReviewPage() {
       return
     }
 
-    const dataByDate = logs.reduce((acc, log) => {
-      const date = new Date(log.created_at).toISOString().split("T")[0] // YYYY-MM-DD
-      acc[date] = (acc[date] || 0) + log.time
-      return acc
-    }, {} as Record<string, number>)
-
-    const processedData = Object.entries(dataByDate)
-      .map(([date, totalTime]) => ({
-        date,
-        totalTime,
-      }))
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    let dataByKey: Record<string, number> = {}
+    if (viewMode === 'day') {
+      dataByKey = logs.reduce((acc, log) => {
+        const date = new Date(log.created_at).toISOString().split("T")[0]
+        acc[date] = (acc[date] || 0) + log.time
+        return acc
+      }, {} as Record<string, number>)
+    } else if (viewMode === 'week') {
+      dataByKey = logs.reduce((acc, log) => {
+        const d = new Date(log.created_at)
+        // 週の開始日（ISO: 月曜始まり）
+        const year = d.getFullYear()
+        const week = getISOWeek(d)
+        const key = `${year}-W${week}`
+        acc[key] = (acc[key] || 0) + log.time
+        return acc
+      }, {} as Record<string, number>)
+    } else if (viewMode === 'month') {
+      dataByKey = logs.reduce((acc, log) => {
+        const d = new Date(log.created_at)
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        acc[key] = (acc[key] || 0) + log.time
+        return acc
+      }, {} as Record<string, number>)
+    }
+    const processedData = Object.entries(dataByKey)
+      .map(([date, totalTime]) => ({ date, totalTime }))
+      .sort((a, b) => a.date.localeCompare(b.date))
     
     console.log("Processed data for chart component:", processedData)
 
     setChartData(processedData)
+  }
+
+  function getISOWeek(date: Date) {
+    const tmp = new Date(date.getTime())
+    tmp.setHours(0, 0, 0, 0)
+    tmp.setDate(tmp.getDate() + 3 - ((tmp.getDay() + 6) % 7))
+    const week1 = new Date(tmp.getFullYear(), 0, 4)
+    return (
+      1 + Math.round(
+        ((tmp.getTime() - week1.getTime()) / 86400000 - 3 + ((week1.getDay() + 6) % 7)) / 7
+      )
+    )
   }
 
   if (isLoading) {
@@ -127,10 +160,15 @@ export default function ReviewPage() {
               <BarChart2 className="h-5 w-5" />
               学習時間の推移
             </CardTitle>
+            <div className="flex gap-2 mt-2">
+              <button className={`px-3 py-1 rounded ${viewMode === 'day' ? 'bg-primary text-white' : 'bg-muted'}`} onClick={() => setViewMode('day')}>日ごと</button>
+              <button className={`px-3 py-1 rounded ${viewMode === 'week' ? 'bg-primary text-white' : 'bg-muted'}`} onClick={() => setViewMode('week')}>週ごと</button>
+              <button className={`px-3 py-1 rounded ${viewMode === 'month' ? 'bg-primary text-white' : 'bg-muted'}`} onClick={() => setViewMode('month')}>月ごと</button>
+            </div>
           </CardHeader>
           <CardContent>
             {chartData.length > 0 ? (
-              <StudyChart data={chartData} />
+              <StudyChart data={chartData} viewMode={viewMode} />
             ) : (
               <div className="flex items-center justify-center h-64">
                 <p className="text-muted-foreground">表示するデータがありません。</p>

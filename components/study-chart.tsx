@@ -7,19 +7,29 @@ import type { ChartData } from "@/app/review/page"
 
 interface StudyChartProps {
   data: ChartData[]
+  viewMode?: 'day' | 'week' | 'month'
 }
 
-export function StudyChart({ data }: StudyChartProps) {
+export function StudyChart({ data, viewMode = 'day' }: StudyChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
   const maxTime = Math.max(...data.map((d) => d.totalTime), 0)
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString("ja-JP", {
-      month: "numeric",
-      day: "numeric",
-      weekday: "short",
-    })
+    if (viewMode === 'day') {
+      const date = new Date(dateString)
+      return date.toLocaleDateString("ja-JP", {
+        month: "numeric",
+        day: "numeric",
+        weekday: "short",
+      })
+    } else if (viewMode === 'week') {
+      const [year, week] = dateString.split('-W')
+      return `${year}年第${week}週`
+    } else if (viewMode === 'month') {
+      const [year, month] = dateString.split('-')
+      return `${year}年${month}月`
+    }
+    return dateString
   }
 
   const getBarColor = (time: number, maxTime: number) => {
@@ -106,16 +116,15 @@ export function StudyChart({ data }: StudyChartProps) {
                         {/* 日付ラベル */}
                         <div className="mt-2 text-center">
                           <div className="text-xs text-muted-foreground transform -rotate-45 origin-center whitespace-nowrap">
-                            {new Date(item.date).toLocaleDateString("ja-JP", {
-                              month: "numeric",
-                              day: "numeric",
-                            })}
+                            {formatDate(item.date)}
                           </div>
-                          <div className="text-[10px] text-muted-foreground/70 mt-1">
-                            {new Date(item.date).toLocaleDateString("ja-JP", {
-                              weekday: "short",
-                            })}
-                          </div>
+                          {viewMode === 'day' && (
+                            <div className="text-[10px] text-muted-foreground/70 mt-1">
+                              {new Date(item.date).toLocaleDateString("ja-JP", {
+                                weekday: "short",
+                              })}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )

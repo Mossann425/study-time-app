@@ -28,24 +28,41 @@ export function TimeRecorder({ onTimeRecorded }: TimeRecorderProps) {
   const loadSubjects = async () => {
     try {
       console.log("科目の読み込みを開始...")
-      const { data, error } = await supabase.from("subjects").select("*").order("created_at", { ascending: false })
-
+      const { data, error } = await supabase.from("subjects").select("*")
       if (error) {
         console.error("Supabaseエラー:", error)
         throw error
       }
-      
       console.log("読み込まれた科目:", data)
       setSubjects(data || [])
     } catch (error) {
       console.error("科目の読み込みに失敗:", error)
-      // エラーの詳細を表示
       if (error instanceof Error) {
         console.error("エラーメッセージ:", error.message)
         console.error("エラースタック:", error.stack)
       }
     }
   }
+
+  // 並び替えロジック
+  const sortedSubjects = (() => {
+    if (!subjects.length) return []
+    const latestAccessed = subjects.reduce((prev, curr) =>
+      (prev.last_accessed_at || 0) > (curr.last_accessed_at || 0) ? prev : curr
+    )
+    const mostAccessed = subjects.reduce((prev, curr) =>
+      (prev.access_count || 0) > (curr.access_count || 0) ? prev : curr
+    )
+    const others = subjects.filter(
+      (s) => s.id !== latestAccessed.id && s.id !== mostAccessed.id
+    )
+    const result = [latestAccessed]
+    if (mostAccessed.id !== latestAccessed.id) result.push(mostAccessed)
+    return [
+      ...result,
+      ...others.sort((a, b) => (b.last_accessed_at || 0) - (a.last_accessed_at || 0)),
+    ]
+  })()
 
   const recordTime = async () => {
     if (!selectedSubjectId || !studyTime) return;
@@ -121,6 +138,19 @@ export function TimeRecorder({ onTimeRecorded }: TimeRecorderProps) {
     }
   };
 
+  // 科目選択時にlast_accessed_atとaccess_countを更新
+  const handleSubjectSelect = async (subjectId: string) => {
+    setSelectedSubjectId(subjectId)
+    // 現在時刻（timestamp型用）
+    const now = new Date().toISOString()
+    // access_countをインクリメント
+    const subject = subjects.find((s) => s.id === subjectId)
+    const newAccessCount = (subject?.access_count || 0) + 1
+    await supabase.from("subjects").update({ last_accessed_at: now, access_count: newAccessCount }).eq("id", subjectId)
+    // subjectsリストを再取得
+    await loadSubjects()
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -133,14 +163,20 @@ export function TimeRecorder({ onTimeRecorded }: TimeRecorderProps) {
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="subject">科目</Label>
-          <Select value={selectedSubjectId} onValueChange={setSelectedSubjectId}>
+          <Select value={selectedSubjectId} onValueChange={handleSubjectSelect}>
             <SelectTrigger>
               <SelectValue placeholder="科目を選択してください" />
             </SelectTrigger>
             <SelectContent>
-              {subjects.map((subject) => (
-                <SelectItem key={subject.id} value={subject.id.toString()}>
+              {sortedSubjects.map((subject) => (
+                <SelectItem key={subject.id} value={subject.id.toString()} className="flex items-center gap-2">
                   {subject.name}
+                  {subject.id === (subjects.reduce((prev, curr) => (prev.last_accessed_at || 0) > (curr.last_accessed_at || 0) ? prev : curr).id) && (
+                    <span className="ml-2 px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-xs">latest</span>
+                  )}
+                  {subject.id === (subjects.reduce((prev, curr) => (prev.access_count || 0) > (curr.access_count || 0) ? prev : curr).id) && (
+                    <span className="ml-2 px-2 py-0.5 rounded bg-green-100 text-green-700 text-xs">最もアクセスしている</span>
+                  )}
                 </SelectItem>
               ))}
             </SelectContent>

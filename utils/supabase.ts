@@ -33,6 +33,8 @@ export interface Subject {
   name: string
   user_id: string
   created_at: string
+  last_accessed_at?: number
+  access_count?: number
 }
 
 export interface StudyTime {

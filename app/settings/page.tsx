@@ -64,8 +64,7 @@ export default function SettingsPage() {
 
   const loadSubjects = async () => {
     try {
-      const { data, error } = await supabase.from("subjects").select("*").order("created_at", { ascending: false })
-
+      const { data, error } = await supabase.from("subjects").select("*")
       if (error) throw error
       setSubjects(data || [])
     } catch (error) {
@@ -139,6 +138,30 @@ export default function SettingsPage() {
     setEditingSubject(null)
     setEditingSubjectName("")
   }
+
+  // 並び替えロジック
+  const sortedSubjects = (() => {
+    if (!subjects.length) return []
+    // last_accessed_atが最大のsubject
+    const latestAccessed = subjects.reduce((prev, curr) =>
+      (prev.last_accessed_at || 0) > (curr.last_accessed_at || 0) ? prev : curr
+    )
+    // access_countが最大のsubject
+    const mostAccessed = subjects.reduce((prev, curr) =>
+      (prev.access_count || 0) > (curr.access_count || 0) ? prev : curr
+    )
+    // latestAccessed, mostAccessed以外
+    const others = subjects.filter(
+      (s) => s.id !== latestAccessed.id && s.id !== mostAccessed.id
+    )
+    // latestAccessed, mostAccessedが同じ場合は重複しないように
+    const result = [latestAccessed]
+    if (mostAccessed.id !== latestAccessed.id) result.push(mostAccessed)
+    return [
+      ...result,
+      ...others.sort((a, b) => (b.last_accessed_at || 0) - (a.last_accessed_at || 0)),
+    ]
+  })()
 
   return (
     <div className="min-h-screen bg-background">
@@ -216,7 +239,7 @@ export default function SettingsPage() {
               <p className="text-muted-foreground">まだ科目が登録されていません</p>
             ) : (
               <div className="space-y-3">
-                {subjects.map((subject) => (
+                {sortedSubjects.map((subject, idx) => (
                   <div key={subject.id} className="flex items-center gap-2 p-3 border rounded-lg">
                     {editingSubject === subject.id ? (
                       <>
@@ -241,6 +264,13 @@ export default function SettingsPage() {
                         <Badge variant="secondary" className="flex-1 justify-start">
                           {subject.name}
                         </Badge>
+                        {/* タグ表示 */}
+                        {idx === 0 && (
+                          <Badge variant="default" className="ml-2">latest</Badge>
+                        )}
+                        {subject.id === (subjects.reduce((prev, curr) => (prev.access_count || 0) > (curr.access_count || 0) ? prev : curr).id) && (
+                          <Badge variant="default" className="ml-2">最もアクセスしている</Badge>
+                        )}
                         <Button size="sm" variant="outline" onClick={() => handleEditSubject(subject)}>
                           <Edit className="h-4 w-4" />
                         </Button>
