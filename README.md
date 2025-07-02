@@ -80,7 +80,9 @@ CREATE TABLE subjects (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  access_count int,
+  last_accessed_at timestampz
 );
 
 -- 学習時間テーブル
@@ -240,6 +242,8 @@ study-time-app-latest/
 - `name`: 科目名
 - `user_id`: ユーザーID（外部キー）
 - `created_at`: 作成日時
+- `access_count`: アクセス数（int, 科目が選択された回数）
+- `last_accessed_at`: アクセス時刻（timestampz, 直近アクセス日時）
 
 ### study_times テーブル（学習時間記録）
 - `id`: 学習時間ID
