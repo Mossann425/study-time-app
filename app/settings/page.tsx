@@ -11,12 +11,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
-import { Settings, Target, User, BookOpen, Save, Edit } from "lucide-react"
+import { Settings, Target, User, BookOpen, Save, Edit, Database, Trash2 } from "lucide-react"
+
+// 科目データの型（必要なカラムのみ）
+interface SubjectSummary {
+  id: string;
+  name: string;
+  created_at: string;
+  last_accessed_at?: string;
+  access_count?: number;
+}
 
 export default function SettingsPage() {
   const [goalText, setGoalText] = useState<string>("")
   const [currentUser, setCurrentUser] = useState("")
-  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [subjects, setSubjects] = useState<SubjectSummary[]>([])
   const [editingSubject, setEditingSubject] = useState<string | null>(null)
   const [editingSubjectName, setEditingSubjectName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -64,7 +73,10 @@ export default function SettingsPage() {
 
   const loadSubjects = async () => {
     try {
-      const { data, error } = await supabase.from("subjects").select("*")
+      const { data, error } = await supabase
+        .from("subjects")
+        .select("id, name, created_at, last_accessed_at, access_count")
+        .order("created_at", { ascending: false })
       if (error) throw error
       setSubjects(data || [])
     } catch (error) {
@@ -111,7 +123,7 @@ export default function SettingsPage() {
     }
   }
 
-  const handleEditSubject = (subject: Subject) => {
+  const handleEditSubject = (subject: SubjectSummary) => {
     setEditingSubject(subject.id)
     setEditingSubjectName(subject.name)
   }
@@ -144,7 +156,7 @@ export default function SettingsPage() {
     if (!subjects.length) return []
     // last_accessed_atが最大のsubject
     const latestAccessed = subjects.reduce((prev, curr) =>
-      (prev.last_accessed_at || 0) > (curr.last_accessed_at || 0) ? prev : curr
+      (prev.last_accessed_at || '') > (curr.last_accessed_at || '') ? prev : curr
     )
     // access_countが最大のsubject
     const mostAccessed = subjects.reduce((prev, curr) =>
@@ -159,7 +171,7 @@ export default function SettingsPage() {
     if (mostAccessed.id !== latestAccessed.id) result.push(mostAccessed)
     return [
       ...result,
-      ...others.sort((a, b) => (b.last_accessed_at || 0) - (a.last_accessed_at || 0)),
+      ...others.sort((a, b) => (b.last_accessed_at || '').localeCompare(a.last_accessed_at || '')),
     ]
   })()
 

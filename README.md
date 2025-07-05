@@ -1,8 +1,9 @@
 # 学習時間管理アプリケーション
 https://study-time-app-five.vercel.app/
-メールアドレス:bbb@bbb
-パスワード:bbbbbb
+メールアドレス:sss@sss
+パスワード:ssssss
 で実際にログインして使えます。
+
 ## 概要
 
 このアプリケーションは、**ユーザーの学習意欲維持と学習習慣の形成**を目的として開発されたWebアプリケーションです。科目ごとの学習時間を記録し、グラフで可視化することで、学習の継続性とモチベーションを高めることを目指しています。
@@ -25,25 +26,37 @@ https://study-time-app-five.vercel.app/
 - 科目ごとの学習時間記録
 - **科目の並び替え**: 直近アクセスした科目やアクセス回数が多い科目を上位に表示
 - **学習習慣形成**: 科目別の学習パターン把握
+- **ユーザー別フィルタリング**: 各ユーザーは自分の科目のみを表示・管理
 
 ### ⏱️ 時間記録
 - 科目を選択して学習時間を記録
 - コメント機能で学習内容をメモ
 - リアルタイムでの記録
 - **学習意欲維持**: 即座のフィードバック
+- **キャッシュ機能**: 科目データのメモリキャッシュによる高速化
+- **即座更新**: 科目選択時の即座なUI更新（データベース再取得なし）
 
 ### 📊 学習分析
 - 日別・科目別の学習時間グラフ
 - **グラフ表示切り替え**: 日毎・週ごと・月毎で学習時間の推移を切り替え表示
+- **期間選択機能**: 年・月を選択して特定期間のデータを表示
 - 総学習時間の表示
 - 学習パターンの可視化
 - **学習習慣形成**: 継続的な学習の可視化
+- **パフォーマンス最適化**: useMemo/useCallbackによる計算結果と関数のキャッシュ
+- **レスポンシブグラフ**: データ量に応じた動的な棒グラフ幅調整
+- **スクロール対応**: 大量データ時の横スクロール表示
 
 ### 📝 学習ログ
 - 過去の学習記録を確認
 - コメント付きの詳細ログ
 - 最新20件の記録を表示
 - **学習意欲維持**: 過去の努力の振り返り
+
+### 🛠️ 開発者機能（開発環境のみ）
+- **テストデータ生成**: パフォーマンステスト用の大量データ生成
+- **テストデータ削除**: テストデータの一括削除
+- **環境分離**: 開発環境でのみ利用可能な機能
 
 ## 技術スタック
 
@@ -52,6 +65,7 @@ https://study-time-app-five.vercel.app/
 - **TypeScript** - 型安全な開発
 - **Tailwind CSS** - スタイリング
 - **shadcn/ui** - UI コンポーネント
+- **React Hooks** - useMemo, useCallbackによるパフォーマンス最適化
 
 ### バックエンド
 - **Supabase** - データベース・認証
@@ -61,141 +75,10 @@ https://study-time-app-five.vercel.app/
 - **Supabase Auth** - ユーザー認証
 - **JWT** - セッション管理
 
-
-
-### Supabase プロジェクトの設定
-
-#### データベーステーブルの作成
-```sql
--- ユーザー情報テーブル
-CREATE TABLE users (
-  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  name TEXT NOT NULL,
-  study_goal TEXT DEFAULT '未設定',
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-
--- 科目テーブル
-CREATE TABLE subjects (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  access_count int,
-  last_accessed_at timestampz
-);
-
--- 学習時間テーブル
-CREATE TABLE study_times (
-  id SERIAL PRIMARY KEY,
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  subject_id UUID REFERENCES subjects(id) ON DELETE CASCADE NOT NULL,
-  time INTEGER NOT NULL,
-  comment TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
-);
-```
-
-#### RLS（Row Level Security）の設定
-```sql
--- RLS を有効化
-ALTER TABLE users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE subjects ENABLE ROW LEVEL SECURITY;
-ALTER TABLE study_times ENABLE ROW LEVEL SECURITY;
-
--- ユーザー情報のポリシー
-CREATE POLICY "Users can view own user info" ON users
-  FOR SELECT USING (auth.uid() = id);
-
-CREATE POLICY "Users can update own user info" ON users
-  FOR UPDATE USING (auth.uid() = id);
-
-CREATE POLICY "Users can insert own user info" ON users
-  FOR INSERT WITH CHECK (auth.uid() = id);
-
--- 科目のポリシー
-CREATE POLICY "Users can view own subjects" ON subjects
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own subjects" ON subjects
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own subjects" ON subjects
-  FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own subjects" ON subjects
-  FOR DELETE USING (auth.uid() = user_id);
-
--- 学習時間のポリシー
-CREATE POLICY "Users can view own study times" ON study_times
-  FOR SELECT USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can insert own study times" ON study_times
-  FOR INSERT WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Users can update own study times" ON study_times
-  FOR UPDATE USING (auth.uid() = user_id);
-
-CREATE POLICY "Users can delete own study times" ON study_times
-  FOR DELETE USING (auth.uid() = user_id);
-```
-
-
-## プロジェクト構造
-
-```
-study-time-app-latest/
-├── app/                           # Next.js アプリケーション（App Router）
-│   ├── edit/                     # 設定編集ページ
-│   │   └── page.tsx             # ユーザー情報・学習目標編集
-│   ├── login/                    # ログインページ
-│   │   └── page.tsx             # ユーザー認証
-│   ├── register/                 # 新規登録ページ
-│   │   └── page.tsx             # アカウント作成
-│   ├── review/                   # 学習分析ページ
-│   │   └── page.tsx             # 学習時間グラフ・統計
-│   ├── settings/                 # 設定ページ
-│   │   └── page.tsx             # ユーザー設定・科目管理
-│   ├── globals.css              # グローバルスタイル
-│   ├── layout.tsx               # アプリケーション全体のレイアウト
-│   └── page.tsx                 # ホームページ（メイン機能）
-├── components/                   # React コンポーネント
-│   ├── ui/                      # shadcn/ui コンポーネント
-│   │   ├── button.tsx          # ボタンコンポーネント
-│   │   ├── card.tsx            # カードコンポーネント
-│   │   ├── input.tsx           # 入力フィールド
-│   │   ├── select.tsx          # セレクトボックス
-│   │   ├── textarea.tsx        # テキストエリア
-│   │   └── ...                 # その他のUIコンポーネント
-│   ├── page-header.tsx         # ページヘッダー（ナビゲーション）
-│   ├── study-chart.tsx         # 学習時間グラフ（可視化）
-│   ├── study-log.tsx           # 学習ログ（記録表示）
-│   ├── subject-manager.tsx     # 科目管理（科目の追加・編集）
-│   ├── theme-provider.tsx      # テーマプロバイダー（ダークモード対応）
-│   ├── time-editor.tsx         # 時間編集（未使用）
-│   └── time-recorder.tsx       # 時間記録（メイン機能）
-├── lib/                         # ユーティリティ関数
-│   └── utils.ts                # 共通関数（クラス名生成など）
-├── utils/                       # Supabase 設定
-│   └── supabase.ts             # Supabase クライアント設定
-├── hooks/                       # カスタムフック
-│   ├── use-mobile.tsx          # モバイル判定フック
-│   └── use-toast.ts            # トースト通知フック
-├── public/                      # 静的ファイル
-│   ├── favicon.ico             # ファビコン
-│   ├── placeholder-logo.png    # プレースホルダー画像
-│   └── ...                     # その他の静的ファイル
-├── styles/                      # スタイルファイル
-│   └── globals.css             # グローバルスタイル（重複）
-├── .gitignore                   # Git 除外設定
-├── components.json              # shadcn/ui 設定
-├── next.config.mjs             # Next.js 設定
-├── package.json                 # 依存関係・スクリプト
-├── postcss.config.mjs          # PostCSS 設定
-├── tailwind.config.ts          # Tailwind CSS 設定
-├── tsconfig.json               # TypeScript 設定
-└── README.md                   # プロジェクト説明書
-```
+### パフォーマンス最適化
+- **メモリキャッシュ** - フロントエンドでのデータキャッシュ
+- **計算結果キャッシュ** - 重い計算処理のメモ化
+- **関数キャッシュ** - コールバック関数のメモ化
 
 ## 主要コンポーネントの詳細
 
@@ -204,12 +87,39 @@ study-time-app-latest/
 - **機能**: 科目選択、時間入力、コメント記録
 - **学習意欲維持**: 即座の記録による達成感
 - **学習習慣形成**: 毎日の記録が習慣化を促進
+- **パフォーマンス最適化**: 
+  - メモリキャッシュによる科目データの高速取得
+  - 科目選択時の即座なUI更新
+  - 重複データベースアクセスの防止
+  - キャッシュ有効期限管理（5分）
+- **セキュリティ**: ユーザー別の科目フィルタリング
 
 ### StudyChart（学習時間グラフ）
 **学習意欲維持のための可視化コンポーネント**
-- **機能**: 日別学習時間の棒グラフ表示
+- **機能**: 日別・週別・月別学習時間の棒グラフ表示
 - **学習意欲維持**: 継続的な学習の可視化
 - **学習習慣形成**: 学習パターンの把握
+- **パフォーマンス最適化**:
+  - useMemoによる計算結果のキャッシュ
+  - useCallbackによる関数のメモ化
+  - 事前計算済みデータの活用
+  - ホバー時の即座なツールチップ表示
+- **UI/UX改善**:
+  - データ量に応じた動的な棒グラフ幅調整
+  - 大量データ時の横スクロール対応
+  - 日付ラベルの読みやすさ向上
+  - 色分けによる学習時間の視覚的表現
+
+### ReviewPage（学習分析ページ）
+**学習データの分析と可視化**
+- **機能**: 期間選択、グラフ表示、統計情報
+- **期間選択**: 年・月を選択して特定期間のデータを表示
+- **表示モード**: 日別・週別・月別の切り替え
+- **データ処理**:
+  - 期間限定での効率的なデータ取得
+  - 選択された年・月に基づく正確なデータフィルタリング
+  - 週別表示での月内週番号計算
+- **パフォーマンス測定**: データ取得時間の計測とログ出力
 
 ### StudyLog（学習ログ）
 **学習継続のモチベーション向上コンポーネント**
@@ -253,7 +163,34 @@ study-time-app-latest/
 - `comment`: コメント（学習内容の記録）
 - `created_at`: 作成日時（学習習慣の追跡）
 
+## パフォーマンス最適化
 
+### フロントエンドキャッシュ
+- **メモリキャッシュ**: 科目データの5分間キャッシュ
+- **計算結果キャッシュ**: グラフ計算結果のメモ化
+- **関数キャッシュ**: コールバック関数のメモ化
+- **重複実行防止**: 同時実行の防止
+
+### データベース最適化
+- **ユーザー別フィルタリング**: 必要なデータのみ取得
+- **期間限定取得**: 表示期間に応じた効率的なクエリ
+- **型安全なクエリ**: 必要なカラムのみを選択
+
+### UI/UX最適化
+- **即座の反応**: キャッシュによる高速なUI更新
+- **レスポンシブデザイン**: データ量に応じた動的調整
+- **スクロール対応**: 大量データの適切な表示
+
+## セキュリティ
+
+### データアクセス制御
+- **RLS（Row Level Security）**: ユーザー別データアクセス制御
+- **ユーザー認証**: Supabase Authによる安全な認証
+- **データフィルタリング**: フロントエンドでのユーザー別フィルタリング
+
+### 環境分離
+- **開発環境**: テストデータ生成・削除機能
+- **本番環境**: セキュアな運用環境
 
 ## 学習意欲維持・習慣形成のための設計思想
 
@@ -271,6 +208,11 @@ study-time-app-latest/
 - **シンプル操作**: 直感的で簡単な操作
 - **即座フィードバック**: 記録後の即座の確認
 - **継続的改善**: 学習パターンの分析と改善
+
+### ⚡ パフォーマンス重視
+- **高速レスポンス**: キャッシュによる即座の反応
+- **スムーズな操作**: 最適化されたUI/UX
+- **効率的なデータ処理**: 必要最小限のデータ取得
 
 ## ライセンス
 

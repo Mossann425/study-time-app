@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -14,8 +14,17 @@ interface TimeRecorderProps {
   onTimeRecorded?: () => void
 }
 
+// 科目データの型（必要なカラムのみ）
+interface SubjectSummary {
+  id: string;
+  name: string;
+  user_id: string;
+  last_accessed_at?: string;
+  access_count?: number;
+}
+
 export function TimeRecorder({ onTimeRecorded }: TimeRecorderProps) {
-  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [subjects, setSubjects] = useState<SubjectSummary[]>([])
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>("")
   const [studyTime, setStudyTime] = useState("")
   const [comment, setComment] = useState("")
@@ -28,7 +37,20 @@ export function TimeRecorder({ onTimeRecorded }: TimeRecorderProps) {
   const loadSubjects = async () => {
     try {
       console.log("科目の読み込みを開始...")
-      const { data, error } = await supabase.from("subjects").select("*")
+      
+      // 現在のユーザーを取得
+      const { data: userData } = await supabase.auth.getUser()
+      if (!userData.user) {
+        console.error("ユーザーが見つかりません")
+        return
+      }
+
+      const { data, error } = await supabase
+        .from("subjects")
+        .select("id, name, user_id, last_accessed_at, access_count")
+        .eq("user_id", userData.user.id)
+        .order("created_at", { ascending: false })
+      
       if (error) {
         console.error("Supabaseエラー:", error)
         throw error
@@ -60,7 +82,7 @@ export function TimeRecorder({ onTimeRecorded }: TimeRecorderProps) {
     if (mostAccessed.id !== latestAccessed.id) result.push(mostAccessed)
     return [
       ...result,
-      ...others.sort((a, b) => (b.last_accessed_at || 0) - (a.last_accessed_at || 0)),
+      ...others.sort((a, b) => (b.last_accessed_at || '').localeCompare(a.last_accessed_at || '')),
     ]
   })()
 
@@ -162,16 +184,16 @@ export function TimeRecorder({ onTimeRecorded }: TimeRecorderProps) {
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="space-y-2">
-          <Label htmlFor="subject">科目</Label>
+          <Label htmlFor="subject-select">科目</Label>
           <Select value={selectedSubjectId} onValueChange={handleSubjectSelect}>
-            <SelectTrigger>
+            <SelectTrigger id="subject-select">
               <SelectValue placeholder="科目を選択してください" />
             </SelectTrigger>
             <SelectContent>
               {sortedSubjects.map((subject) => (
                 <SelectItem key={subject.id} value={subject.id.toString()} className="flex items-center gap-2">
                   {subject.name}
-                  {subject.id === (subjects.reduce((prev, curr) => (prev.last_accessed_at || 0) > (curr.last_accessed_at || 0) ? prev : curr).id) && (
+                  {subject.id === (subjects.reduce((prev, curr) => (prev.last_accessed_at || '') > (curr.last_accessed_at || '') ? prev : curr).id) && (
                     <span className="ml-2 px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-xs">latest</span>
                   )}
                   {subject.id === (subjects.reduce((prev, curr) => (prev.access_count || 0) > (curr.access_count || 0) ? prev : curr).id) && (
