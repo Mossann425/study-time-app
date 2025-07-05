@@ -138,7 +138,7 @@ export default function ReviewPage() {
         // 選択された月のデータのみを処理
         if (logDate >= selectedMonthStart && logDate <= selectedMonthEnd) {
           const date = logDate.toISOString().split("T")[0]
-          acc[date] = (acc[date] || 0) + log.time
+        acc[date] = (acc[date] || 0) + log.time
         }
         return acc
       }, {} as Record<string, number>)
@@ -153,7 +153,7 @@ export default function ReviewPage() {
         if (logDate >= selectedMonthStart && logDate <= selectedMonthEnd) {
           const weekOfMonth = getWeekOfMonth(logDate)
           const key = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-W${weekOfMonth}`
-          acc[key] = (acc[key] || 0) + log.time
+        acc[key] = (acc[key] || 0) + log.time
         }
         return acc
       }, {} as Record<string, number>)
@@ -165,7 +165,7 @@ export default function ReviewPage() {
         if (logDate.getFullYear() === selectedYear) {
           const month = logDate.getMonth() + 1
           const key = `${selectedYear}-${String(month).padStart(2, '0')}`
-          acc[key] = (acc[key] || 0) + log.time
+        acc[key] = (acc[key] || 0) + log.time
         }
         return acc
       }, {} as Record<string, number>)
@@ -200,7 +200,7 @@ export default function ReviewPage() {
   const renderPeriodSelector = () => {
     if (viewMode === 'day' || viewMode === 'week') {
       // 月選択
-      return (
+    return (
         <div className="flex items-center gap-2 mb-2">
           <button onClick={() => {
             const prev = subMonths(new Date(selectedYear, selectedMonth - 1, 1), 1)

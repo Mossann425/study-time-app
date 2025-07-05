@@ -83,7 +83,7 @@ export function StudyChart({ data, viewMode = 'day' }: StudyChartProps) {
     if (viewMode === 'day') {
       const date = new Date(item.date)
       const day = isNaN(date.getTime()) ? 'N/A' : date.getDate()
-      return <div>{day}</div>
+      return <div>{day}日</div>
     } else {
       return (
         <div className="text-[10px]">
