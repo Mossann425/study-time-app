@@ -2,15 +2,25 @@
 
 import { useState, useMemo, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { BarChart3 } from "lucide-react"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { BarChart3, BookOpen } from "lucide-react"
 import type { ChartData } from "@/app/review/page"
 
 interface StudyChartProps {
   data: ChartData[]
   viewMode?: 'day' | 'week' | 'month'
+  subjectFilter?: string | null // 科目フィルター
+  subjects?: Array<{ id: string; name: string }> // 科目リスト
+  onSubjectChange?: (subjectId: string | null) => void // 科目変更コールバック
 }
 
-export function StudyChart({ data, viewMode = 'day' }: StudyChartProps) {
+export function StudyChart({ 
+  data, 
+  viewMode = 'day', 
+  subjectFilter = null, 
+  subjects = [], 
+  onSubjectChange 
+}: StudyChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
 
   // キャッシュされた計算結果
@@ -65,10 +75,11 @@ export function StudyChart({ data, viewMode = 'day' }: StudyChartProps) {
         weekday: "short",
       })
     } else if (viewMode === 'week') {
-      const match = dateString.match(/(\d{4})-(\d{2})-W(\d+)/)
+      // 新しい週キーフォーマット (YYYY-WNN) に対応
+      const match = dateString.match(/(\d{4})-W(\d+)/)
       if (match) {
-        const [, year, month, week] = match
-        return `${month}月${week}週目`
+        const [, year, week] = match
+        return `${year}年第${week}週`
       }
       return dateString
     } else if (viewMode === 'month') {
@@ -82,11 +93,14 @@ export function StudyChart({ data, viewMode = 'day' }: StudyChartProps) {
   const DateLabel = useCallback(({ item, viewMode }: { item: any, viewMode: string }) => {
     if (viewMode === 'day') {
       const date = new Date(item.date)
-      const day = isNaN(date.getTime()) ? 'N/A' : date.getDate()
-      return <div>{day}日</div>
+      if (isNaN(date.getTime())) {
+        return <div className="text-xs text-muted-foreground">無効</div>
+      }
+      const day = date.getDate()
+      return <div className="text-xs text-muted-foreground">{day}日</div>
     } else {
       return (
-        <div className="text-[10px]">
+        <div className="text-[10px] text-muted-foreground">
           {formatDate(item.date)}
         </div>
       )
@@ -118,6 +132,29 @@ export function StudyChart({ data, viewMode = 'day' }: StudyChartProps) {
           {viewMode === 'week' && '週別の学習時間の推移'}
           {viewMode === 'month' && '月別の学習時間の推移'}
         </CardDescription>
+        
+        {/* 科目フィルター */}
+        <div className="flex items-center gap-2 mt-2">
+          <BookOpen className="h-4 w-4 text-muted-foreground" />
+          <Select value={subjectFilter || "all"} onValueChange={(value) => onSubjectChange?.(value === "all" ? null : value)}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="科目を選択" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">全科目</SelectItem>
+              {subjects.map((subject) => (
+                <SelectItem key={subject.id} value={subject.id}>
+                  {subject.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {subjects.length === 0 && (
+            <span className="text-xs text-muted-foreground">
+              学習データがある科目がありません
+            </span>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
@@ -133,6 +170,15 @@ export function StudyChart({ data, viewMode = 'day' }: StudyChartProps) {
                   <div className="font-medium">{tooltipContent?.date}</div>
                   <div className="text-muted-foreground">
                     学習時間: <span className="font-medium text-foreground">{tooltipContent?.time}分</span>
+                    {subjectFilter ? (
+                      <div className="text-xs">
+                        科目: {subjects.find(s => s.id === subjectFilter)?.name}
+                      </div>
+                    ) : (
+                      <div className="text-xs">
+                        全科目合計
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

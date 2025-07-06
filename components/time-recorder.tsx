@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { supabase, type Subject } from "@/utils/supabase"
+import { supabase, type Subject, studyTimeManager } from "@/utils/supabase"
 import { Clock, MessageSquare } from "lucide-react"
 
 interface TimeRecorderProps {
@@ -138,6 +138,15 @@ export function TimeRecorder({ onTimeRecorded }: TimeRecorderProps) {
         // Supabaseからのエラーを直接throwする
         throw error;
       }
+
+      // 新しい日毎集約テーブルを更新
+      const today = new Date().toISOString().split('T')[0]
+      await studyTimeManager.updateUserSubjectDailySummary(
+        userData.user.id,
+        subjectId,
+        today,
+        timeValue
+      )
 
       // フォームをリセット
       setSelectedSubjectId("");

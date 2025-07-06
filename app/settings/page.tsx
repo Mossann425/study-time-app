@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { supabase, type Subject } from "@/utils/supabase"
+import { supabase, type Subject, studyTimeManager } from "@/utils/supabase"
 import { PageHeader } from "@/components/page-header"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,6 +29,7 @@ export default function SettingsPage() {
   const [editingSubject, setEditingSubject] = useState<string | null>(null)
   const [editingSubjectName, setEditingSubjectName] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isMigrating, setIsMigrating] = useState(false)
   const [message, setMessage] = useState("")
   const [error, setError] = useState("")
   const router = useRouter()
@@ -81,6 +82,31 @@ export default function SettingsPage() {
       setSubjects(data || [])
     } catch (error) {
       console.error("科目の読み込みに失敗:", error)
+    }
+  }
+
+
+
+  // 新しい日毎集約テーブルへのデータ移行機能
+  const handleDailySummaryMigration = async () => {
+    setIsMigrating(true)
+    setMessage("")
+    setError("")
+    
+    try {
+      const { data: userData } = await supabase.auth.getUser()
+      if (!userData.user) {
+        throw new Error("ユーザーが見つかりません")
+      }
+
+      // 既存データを新しい日毎集約テーブルに移行
+      const result = await studyTimeManager.migrateExistingDataToDailySummaries(userData.user.id)
+      setMessage(`新しい日毎集約テーブルへの移行が完了しました（${result.migratedCount}件）`)
+    } catch (error) {
+      console.error("日毎集約データ移行エラー:", error)
+      setError(error instanceof Error ? error.message : "日毎集約データ移行に失敗しました")
+    } finally {
+      setIsMigrating(false)
     }
   }
 
@@ -234,6 +260,48 @@ export default function SettingsPage() {
               <Save className="h-4 w-4 mr-2" />
               {isLoading ? "保存中..." : "設定を保存"}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* データ管理 */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Database className="h-5 w-5" />
+              データ管理
+            </CardTitle>
+            <CardDescription>データベースの最適化と管理</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+
+
+            <div className="flex items-center justify-between">
+              <div>
+                <h4 className="font-medium">新しい日毎集約テーブルへの移行</h4>
+                <p className="text-sm text-muted-foreground">
+                  既存の学習データを新しい日毎集約テーブルに移行し、日別・週別・月別の表示を最適化します
+                </p>
+              </div>
+              <Button 
+                onClick={handleDailySummaryMigration} 
+                disabled={isMigrating}
+                variant="outline"
+              >
+                {isMigrating ? "移行中..." : "日毎集約移行実行"}
+              </Button>
+            </div>
+            
+            {message && (
+              <Alert>
+                <AlertDescription>{message}</AlertDescription>
+              </Alert>
+            )}
+            
+            {error && (
+              <Alert variant="destructive">
+                <AlertDescription>{error}</AlertDescription>
+              </Alert>
+            )}
           </CardContent>
         </Card>
 
