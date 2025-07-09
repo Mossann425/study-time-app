@@ -1,7 +1,7 @@
 # 学習時間管理アプリケーション
 https://study-time-app-five.vercel.app/
-メールアドレス:xxx@xxx
-パスワード:xxxxxx
+メールアドレス:ppp@ppp
+パスワード:pppppp
 で実際にログインして使えます。
 
 ## 概要

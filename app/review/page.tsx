@@ -32,6 +32,7 @@ export default function ReviewPage() {
   const [viewMode, setViewMode] = useState<'day' | 'week' | 'month'>('day')
   const [subjects, setSubjects] = useState<Array<{ id: string; name: string }>>([])
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null)
+  const [refreshKey, setRefreshKey] = useState(0) // 追加
   // 期間選択用の状態
   const today = new Date()
   const [selectedYear, setSelectedYear] = useState(today.getFullYear())
@@ -165,6 +166,7 @@ export default function ReviewPage() {
         return sum
       }, 0)
       setTotalTime(total)
+      setRefreshKey(prev => prev + 1) // 追加：強制的に再計算
     } catch (error) {
       console.error("学習データの読み込みに失敗:", error)
       setStudyLogs([])
@@ -293,6 +295,7 @@ export default function ReviewPage() {
                 subjectFilter={selectedSubject}
                 subjects={subjects}
                 onSubjectChange={setSelectedSubject}
+                refreshKey={refreshKey} // 追加
               />
             ) : (
               <div className="flex items-center justify-center h-64">

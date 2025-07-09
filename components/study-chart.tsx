@@ -12,6 +12,7 @@ interface StudyChartProps {
   subjectFilter?: string | null // 科目フィルター
   subjects?: Array<{ id: string; name: string }> // 科目リスト
   onSubjectChange?: (subjectId: string | null) => void // 科目変更コールバック
+  refreshKey?: number // 追加：強制再計算用
 }
 
 export function StudyChart({ 
@@ -19,7 +20,8 @@ export function StudyChart({
   viewMode = 'day', 
   subjectFilter = null, 
   subjects = [], 
-  onSubjectChange 
+  onSubjectChange,
+  refreshKey = 0 // 追加
 }: StudyChartProps) {
   const [hoveredIndex, setHoveredIndex] = useState<number | null>(null)
 
@@ -60,7 +62,7 @@ export function StudyChart({
       processedData,
       dataLength: data.length
     }
-  }, [data]) // dataが変更された時のみ再計算
+  }, [data, refreshKey]) // dataが変更された時のみ再計算
 
   // 日付フォーマット関数をキャッシュ
   const formatDate = useCallback((dateString: string) => {
@@ -98,6 +100,14 @@ export function StudyChart({
       }
       const day = date.getDate()
       return <div className="text-xs text-muted-foreground">{day}日</div>
+    } else if (viewMode === 'week') {
+      // 週ごと表示の場合は「第X週」の形式
+      const match = item.date.match(/(\d{4})-W(\d+)/)
+      if (match) {
+        const [, year, week] = match
+        return <div className="text-xs text-muted-foreground">第{week}週</div>
+      }
+      return <div className="text-xs text-muted-foreground">{item.date}</div>
     } else {
       return (
         <div className="text-[10px] text-muted-foreground">
